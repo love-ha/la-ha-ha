@@ -1,5 +1,5 @@
 # 给你的自动化任务起个名字
-name: Build and Sync ttyd from Source
+name: Build and Sync My Terminal from Source
 
 # 触发条件
 on:
@@ -19,26 +19,26 @@ jobs:
           repository: tsl0922/ttyd
           ref: '1.7.4'
 
-      # 第2步：安装编译依赖环境 (我们之前在 README 里看到的)
+      # 第2步：安装编译依赖环境
       - name: Install Build Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential cmake libjson-c-dev libwebsockets-dev
 
-      # 第3步：编译 ttyd 源代码，生成可执行文件
+      # 第3步：编译 ttyd 源代码
       - name: Compile ttyd
         run: |
           mkdir build && cd build
           cmake ..
           make
 
-      # 第4步：【关键步骤】创建 Dockerfile 需要的 dist 目录和文件
+      # 第4步：准备 Dockerfile 需要的文件
       - name: Prepare files for Docker build
         run: |
           mkdir -p ./dist/amd64
           cp ./build/ttyd ./dist/amd64/
 
-      # 第5步：设置 Docker Buildx，这是一个增强的构建工具
+      # 第5步：设置 Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -49,12 +49,13 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # 第7步：从我们准备好的文件构建 Docker 镜像，并直接推送到你的 Docker Hub
+      # 第7步：构建并推送到新的仓库名
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/ttyd:latest,${{ secrets.DOCKERHUB_USERNAME }}/ttyd:1.7.4
-          # 我们明确告诉它，编译的是 amd64 架构
+          # 【最重要的修改在这里！】我们把 ttyd 改成了 my-terminal
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/my-terminal:latest,${{ secrets.DOCKERHUB_USERNAME }}/my-terminal:1.7.4
           platforms: linux/amd64
+
