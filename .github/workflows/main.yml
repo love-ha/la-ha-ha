@@ -30,10 +30,10 @@ jobs:
       # 第三步：拉取、标记、并推送镜像
       - name: Pull, Tag, and Push
         run: |
-          # 【最终修正】我们拉取作者实际使用的 `main` 标签
-          SOURCE_IMAGE="ghcr.io/ttyd-project/ttyd:main"
+          # 【最关键的修正】使用正确的仓库地址和明确的版本号！
+          SOURCE_IMAGE="ghcr.io/tsl0922/ttyd:1.7.4"
 
-          # 我们把它标记成我们自己的 `latest` 标签
+          # 我们把它标记成我们自己的 latest 标签
           TARGET_IMAGE_LATEST="${{ secrets.DOCKERHUB_USERNAME }}/ttyd:latest"
 
           echo "Pulling latest image from ${SOURCE_IMAGE}"
