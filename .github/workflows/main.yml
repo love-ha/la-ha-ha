@@ -1,5 +1,5 @@
 # 给你的自动化任务起个名字
-name: Sync ttyd to Docker Hub
+name: Build and Sync ttyd from Source
 
 # 触发条件
 on:
@@ -12,37 +12,49 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     steps:
-      # 第一步：登录到 GitHub Container Registry (ghcr.io)
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+      # 第1步：下载 ttyd 1.7.4 版本的源代码
+      - name: Check out ttyd source code
+        uses: actions/checkout@v4
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          repository: tsl0922/ttyd
+          ref: '1.7.4'
 
-      # 第二步：登录到 Docker Hub
+      # 第2步：安装编译依赖环境 (我们之前在 README 里看到的)
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake libjson-c-dev libwebsockets-dev
+
+      # 第3步：编译 ttyd 源代码，生成可执行文件
+      - name: Compile ttyd
+        run: |
+          mkdir build && cd build
+          cmake ..
+          make
+
+      # 第4步：【关键步骤】创建 Dockerfile 需要的 dist 目录和文件
+      - name: Prepare files for Docker build
+        run: |
+          mkdir -p ./dist/amd64
+          cp ./build/ttyd ./dist/amd64/
+
+      # 第5步：设置 Docker Buildx，这是一个增强的构建工具
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 第6步：登录到 Docker Hub
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # 第三步：拉取、标记、并推送镜像
-      - name: Pull, Tag, and Push
-        run: |
-          # 【最终、决定性的修正】使用带架构后缀的、真实存在的标签！
-          SOURCE_IMAGE="ghcr.io/tsl0922/ttyd:1.7.4-amd64"
-
-          # 我们把它标记成我们自己的 latest 标签
-          TARGET_IMAGE_LATEST="${{ secrets.DOCKERHUB_USERNAME }}/ttyd:latest"
-
-          echo "Pulling latest image from ${SOURCE_IMAGE}"
-          docker pull ${SOURCE_IMAGE}
-          
-          echo "Tagging image to ${TARGET_IMAGE_LATEST}"
-          docker tag ${SOURCE_IMAGE} ${TARGET_IMAGE_LATEST}
-          echo "Pushing latest image to Docker Hub"
-          docker push ${TARGET_IMAGE_LATEST}
-
-          echo "Sync completed!"
-
+      # 第7步：从我们准备好的文件构建 Docker 镜像，并直接推送到你的 Docker Hub
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/ttyd:latest,${{ secrets.DOCKERHUB_USERNAME }}/ttyd:1.7.4
+          # 我们明确告诉它，编译的是 amd64 架构
+          platforms: linux/amd64
